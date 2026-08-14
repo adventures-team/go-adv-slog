@@ -37,7 +37,9 @@
 // change it at runtime with Level.Set (the replacement for
 // zerolog.SetGlobalLevel). [ParseLevel] parses both slog and zerolog level
 // names, including the custom [LevelTrace], [LevelFatal] and [LevelPanic].
-// [Fatal] and [FatalContext] log at [LevelFatal] and exit.
+// [Fatal] and [FatalContext] log at [LevelFatal] and exit. With
+// [WithLevelConfig], the default and per-package levels are driven by
+// OnlineConf and change on the fly.
 //
 // # Panic logging
 //

@@ -27,9 +27,10 @@ var TestTimeFormat = "15:04:05"
 type Option func(*options)
 
 type options struct {
-	addSource  bool
-	ctxRouting bool
-	level      *slog.Level
+	addSource   bool
+	ctxRouting  bool
+	level       *slog.Level
+	levelConfig LevelConfig
 }
 
 // applyOptions gathers the options and applies the [Level] change, shared by
@@ -56,6 +57,33 @@ func WithAddSource() Option {
 // WithLevel sets the initial value of [Level].
 func WithLevel(l slog.Level) Option {
 	return func(o *options) { o.level = &l }
+}
+
+// WithLevelConfig enables per-package log levels driven by OnlineConf through
+// cfg — a *onlineconf.Module or, recommended, a *onlineconf.Subtree scoped to
+// the service's logging section (a Module subscribes at the root, which
+// OnlineConf notifies on every database update).
+//
+// Configuration layout, relative to cfg:
+//
+//	/level                       default level (drives [Level]; absent = keep current)
+//	/<import-path>/level         override for one package, e.g.
+//	                             /github.com/adventures-team/go-adv-slog/reqlog/level
+//
+// Values are level names accepted by [ParseLevel]. Changes apply on the fly
+// via onlineconf-go subscriptions; the OnlineConf child_lists feature must be
+// enabled for the module (subscriptions themselves already require it).
+//
+// A record belongs to the package whose code called the slog API, resolved
+// from the record's PC — helpers logging on a caller's behalf own their
+// records unless they stamp the caller's PC (as advslog's Fatal, LogPanic and
+// Recover do). Handler Enabled reports at floor granularity —
+// min(default, lowest override) — because it receives no caller information;
+// the per-package decision happens when the record is handled. For expensive
+// log arguments prefer [slog.LogValuer] values: records dropped by the
+// per-package gate never resolve them.
+func WithLevelConfig(cfg LevelConfig) Option {
+	return func(o *options) { o.levelConfig = cfg }
 }
 
 // WithContextRouting makes [Init] (and [InitTest]) wrap the handler so that
@@ -149,13 +177,25 @@ func (w testWriter) Write(p []byte) (int, error) {
 }
 
 // buildHandler assembles the handler chain shared by Init and InitTest:
-// console or JSON output, optionally wrapped for context routing.
+// console or JSON output, optionally wrapped for per-package levels and
+// context routing (routing outermost).
 func buildHandler(w io.Writer, isTerminal bool, o options) slog.Handler {
+	// with level config active, levelHandler owns all gating and the sink
+	// must not re-filter (an override may be more verbose than the default)
+	sinkLevel := slog.Leveler(Level)
+	if o.levelConfig != nil {
+		sinkLevel = levelAll
+	}
+
 	var h slog.Handler
 	if isTerminal {
-		h = consoleHandler(w, o.addSource)
+		h = consoleHandler(w, o.addSource, sinkLevel)
 	} else {
-		h = jsonHandler(w, o.addSource)
+		h = jsonHandler(w, o.addSource, sinkLevel)
+	}
+
+	if o.levelConfig != nil {
+		h = levelHandler{next: h, state: newLevelState(o.levelConfig)}
 	}
 
 	if o.ctxRouting {
@@ -165,18 +205,18 @@ func buildHandler(w io.Writer, isTerminal bool, o options) slog.Handler {
 	return h
 }
 
-func jsonHandler(w io.Writer, addSource bool) slog.Handler {
+func jsonHandler(w io.Writer, addSource bool, level slog.Leveler) slog.Handler {
 	return slog.NewJSONHandler(w, &slog.HandlerOptions{
 		AddSource:   addSource,
-		Level:       Level,
+		Level:       level,
 		ReplaceAttr: replaceLevelName,
 	})
 }
 
-func consoleHandler(w io.Writer, addSource bool) slog.Handler {
+func consoleHandler(w io.Writer, addSource bool, level slog.Leveler) slog.Handler {
 	return tint.NewTextHandler(w, &tint.Options{
 		AddSource:   addSource,
-		Level:       Level,
+		Level:       level,
 		TimeFormat:  TestTimeFormat,
 		NoColor:     noColor(),
 		ReplaceAttr: replaceLevelName,

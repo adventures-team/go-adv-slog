@@ -48,7 +48,7 @@ func TestLevelNamesInJSONOutput(t *testing.T) {
 	defer Level.Set(old)
 
 	var buf bytes.Buffer
-	logger := slog.New(jsonHandler(&buf, false))
+	logger := slog.New(jsonHandler(&buf, false, Level))
 	ctx := context.Background()
 
 	logger.Log(ctx, LevelTrace, "trace msg")

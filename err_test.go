@@ -12,7 +12,7 @@ import (
 
 func TestErr(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(jsonHandler(&buf, false))
+	logger := slog.New(jsonHandler(&buf, false, Level))
 
 	logger.LogAttrs(context.Background(), slog.LevelError, "failed", Err(errors.New("boom")))
 	if !strings.Contains(buf.String(), `"error":"boom"`) {
@@ -33,7 +33,7 @@ func TestFatal(t *testing.T) {
 
 	var buf bytes.Buffer
 	prev := slog.Default()
-	slog.SetDefault(slog.New(jsonHandler(&buf, false)))
+	slog.SetDefault(slog.New(jsonHandler(&buf, false, Level)))
 	defer slog.SetDefault(prev)
 
 	Fatal("fatal happened", Err(errors.New("boom")))
@@ -52,7 +52,7 @@ func TestFatalContext(t *testing.T) {
 	defer func() { osExit = os.Exit }()
 
 	var buf bytes.Buffer
-	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false)))
+	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false, Level)))
 
 	FatalContext(ctx, "fatal in ctx")
 

@@ -17,7 +17,7 @@ func setupRoutedDefault(t *testing.T) *bytes.Buffer {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
 	var buf bytes.Buffer
-	slog.SetDefault(slog.New(routingHandler{next: jsonHandler(&buf, false)}))
+	slog.SetDefault(slog.New(routingHandler{next: jsonHandler(&buf, false, Level)}))
 
 	return &buf
 }

@@ -56,7 +56,7 @@ func TestPanicAttrs(t *testing.T) {
 
 func TestLogPanic(t *testing.T) {
 	var buf bytes.Buffer
-	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false)))
+	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false, Level)))
 
 	LogPanic(ctx, "worker panicked", errors.New("nil dereference"))
 
@@ -70,7 +70,7 @@ func TestLogPanic(t *testing.T) {
 
 func TestRecover(t *testing.T) {
 	var buf bytes.Buffer
-	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false)))
+	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false, Level)))
 
 	func() {
 		defer Recover(ctx, "caught")
@@ -87,7 +87,7 @@ func TestRecover(t *testing.T) {
 
 func TestRecoverNoPanic(t *testing.T) {
 	var buf bytes.Buffer
-	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false)))
+	ctx := NewContext(context.Background(), slog.New(jsonHandler(&buf, false, Level)))
 
 	func() {
 		defer Recover(ctx, "should not log")

@@ -1,3 +1,5 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/adventures-team/go-adv-slog.svg)](https://pkg.go.dev/github.com/adventures-team/go-adv-slog)
+
 # go-adv-slog
 
 Contextual logging helpers for the standard [log/slog](https://pkg.go.dev/log/slog)
@@ -33,6 +35,11 @@ go get github.com/adventures-team/go-adv-slog
   (`advslog.Level.Set(...)` replaces `zerolog.SetGlobalLevel`), plus
   **`ParseLevel`** understanding both slog and zerolog names, and the custom
   `LevelTrace`, `LevelFatal`, `LevelPanic` rendered as `TRACE`/`FATAL`/`PANIC`.
+- **`WithLevelConfig`** — per-package log levels driven by
+  [OnlineConf](https://github.com/onlineconf/onlineconf) (`/level` default,
+  `/<import-path>/level` overrides), applied on the fly through onlineconf-go
+  subscriptions: boost one package to `trace` or silence another to `error`
+  without redeploys.
 - **`Err`**, **`Fatal`**, **`FatalContext`** — the missing conveniences:
   an error attr under the conventional `"error"` key; log-and-exit.
 - **`Recover` / `LogPanic` / `PanicAttrs` / `TracebackAttr`** — panic logging
@@ -94,3 +101,4 @@ req.LogResponse(status, body, err) // response masked, duration and status attac
 | `advslog.Init(advslog.WithAddSource())` | record source positions of log calls |
 | `advslog.Init(advslog.WithLevel(l))` | initial `Level` value |
 | `advslog.Init(advslog.WithContextRouting())` | route `slog.*Context` calls made through the default logger to the context logger |
+| `advslog.Init(advslog.WithLevelConfig(oc))` | per-package levels from an onlineconf-go `Module`/`Subtree`, live updates |
