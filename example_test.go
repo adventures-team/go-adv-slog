@@ -3,6 +3,7 @@ package advslog_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -63,6 +64,29 @@ func ExampleInit() {
 
 	slog.Info("the global slog logger works too")
 }
+
+// Every test running code that logs starts with InitTest, so that the log
+// lines become part of the test's output: shown for failures and with -v,
+// attributed to the test, and safe for go test -json. A test passes its
+// *testing.T (or *testing.B); an example has none, so a stand-in prints the
+// lines instead.
+func ExampleInitTest() {
+	var t advslog.TestingOutput = exampleT{}
+
+	logger := advslog.InitTest(t)
+
+	// The code under test logs through the default logger as usual...
+	slog.Info("request processed", "status", 200)
+
+	// ...or through a logger it is given, here via the context.
+	ctx := advslog.NewContext(context.Background(), logger.With("request_id", "req-42"))
+	processRequest(ctx)
+}
+
+// exampleT stands in for the *testing.T of a real test.
+type exampleT struct{}
+
+func (exampleT) Output() io.Writer { return os.Stdout }
 
 // Recover logs a panic with its typed reason and stack trace through the
 // context logger. Use it in goroutines and worker loops.

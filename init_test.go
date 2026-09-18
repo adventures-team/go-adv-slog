@@ -1,6 +1,7 @@
 package advslog
 
 import (
+	"io"
 	stdlog "log"
 	"log/slog"
 	"os"
@@ -48,12 +49,16 @@ func TestInit(t *testing.T) {
 	}
 }
 
+// tbRecorder stands in for a testing.TB, recording each line written through
+// Output (the handler writes one per record).
 type tbRecorder struct{ lines []string }
 
-func (r *tbRecorder) Log(args ...any) {
-	for _, a := range args {
-		r.lines = append(r.lines, a.(string))
-	}
+func (r *tbRecorder) Output() io.Writer { return r }
+
+func (r *tbRecorder) Write(p []byte) (int, error) {
+	r.lines = append(r.lines, strings.TrimSuffix(string(p), "\n"))
+
+	return len(p), nil
 }
 
 func TestInitTest(t *testing.T) {

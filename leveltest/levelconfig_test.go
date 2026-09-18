@@ -12,6 +12,7 @@ package leveltest
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -79,21 +80,22 @@ const moduleYAMLv2 = `
 level: error
 `
 
-// recorder implements advslog.TestingLog, collecting the log lines.
+// recorder implements advslog.TestingOutput, collecting the log lines (the
+// handler writes one per record).
 type recorder struct {
 	mu    sync.Mutex
 	lines []string
 }
 
-func (r *recorder) Log(args ...any) {
+func (r *recorder) Output() io.Writer { return r }
+
+func (r *recorder) Write(p []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, a := range args {
-		if s, ok := a.(string); ok {
-			r.lines = append(r.lines, s)
-		}
-	}
+	r.lines = append(r.lines, strings.TrimSuffix(string(p), "\n"))
+
+	return len(p), nil
 }
 
 func (r *recorder) contains(sub string) bool {

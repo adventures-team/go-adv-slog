@@ -21,8 +21,10 @@ go get github.com/adventures-team/go-adv-slog
   `GO_LOG` (stderr by default); colored human-readable output on a terminal
   (honors `NO_COLOR`), native slog JSON otherwise; redirects the standard `log`
   package.
-- **`InitTest`** — the same for tests, routed through `testing.TB.Log` with
-  second-precision timestamps.
+- **`InitTest`** — the same for tests, routed through `testing.TB.Output` with
+  second-precision timestamps. Every test running code that logs must call it:
+  `go test` does not support log output written directly to stdout or stderr
+  (see the `InitTest` documentation).
 - **`NewContext` / `Ctx`** — store a request-scoped logger in a
   `context.Context` and retrieve it anywhere (falls back to `slog.Default()`;
   nil context tolerated). The replacement for zerolog's
@@ -75,8 +77,11 @@ In tests:
 
 ```go
 func TestHandle(t *testing.T) {
-	advslog.InitTest(t) // colored output through t.Log, shown for failures and with -v
-	...
+	logger := advslog.InitTest(t) // colored output through t.Output, shown for failures and with -v
+	logger.Info("fixture ready", "user", "alice")
+
+	// the code under test logs through the context, as in main above
+	handle(advslog.NewContext(t.Context(), logger.With("request_id", "test-1")))
 }
 ```
 

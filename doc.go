@@ -14,7 +14,9 @@
 // named by the GO_LOG environment variable (stderr by default), chooses
 // colored human-readable output on a terminal and JSON otherwise, redirects
 // the standard log package, and respects the dynamic [Level]. [InitTest] does
-// the same for tests, writing through testing.TB.Log.
+// the same for tests, writing through testing.TB.Output; every test running code
+// that logs must call it, because go test does not support log output written
+// to stdout or stderr directly.
 //
 // # Contextual logging
 //

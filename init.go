@@ -5,7 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/lmittmann/tint"
@@ -146,34 +145,38 @@ func Init(opts ...Option) *slog.Logger {
 	return defaultLogger
 }
 
-// TestingLog is the subset of [testing.TB] needed by [InitTest]. It is a
-// separate interface so that importing advslog does not pull in the testing
-// package.
-type TestingLog interface {
-	Log(args ...any)
+// TestingOutput is the subset of [testing.TB] needed by [InitTest]: the Output
+// method of *testing.T, *testing.B and *testing.F. It is a separate interface
+// so that importing advslog does not pull in the testing package.
+type TestingOutput interface {
+	Output() io.Writer
 }
 
 // InitTest sets up the default slog logger for use from tests and returns it:
 // colored human-readable output (honoring NO_COLOR) with second-precision
-// time ([TestTimeFormat]), written through tb.Log so that it interleaves
+// time ([TestTimeFormat]), written through tb.Output so that it interleaves
 // correctly with the test output and is shown only for failing tests (unless
 // -v is given).
 //
+// Every test running code that logs must call InitTest first, whatever
+// logging library that code uses, so that no log line reaches stdout or
+// stderr directly. This is the position of the Go maintainers, not a matter
+// of preference: test output belongs in testing.TB.Log or testing.TB.Output.
+// Output written past them is not attributed to its test, is printed for
+// passing tests too, and since Go 1.27 is mangled by go test -json, which
+// drops or misreads the control characters of its own framing in it (ESC
+// among them, so any colored output). A report of that was closed as working
+// as intended with exactly this advice: https://go.dev/issue/81592. Code that
+// logs through a logger of its own rather than the default one must be given
+// the returned logger, e.g. through [NewContext].
+//
 // Unlike [Init] it is not guarded by a once: call it from any test, even when
 // some library has already called Init. It accepts the same options as Init.
-func InitTest(tb TestingLog, opts ...Option) *slog.Logger {
-	l := slog.New(buildHandler(testWriter{tb}, true, applyOptions(opts)))
+func InitTest(tb TestingOutput, opts ...Option) *slog.Logger {
+	l := slog.New(buildHandler(tb.Output(), true, applyOptions(opts)))
 	slog.SetDefault(l)
 
 	return l
-}
-
-type testWriter struct{ tb TestingLog }
-
-func (w testWriter) Write(p []byte) (int, error) {
-	w.tb.Log(strings.TrimSuffix(string(p), "\n"))
-
-	return len(p), nil
 }
 
 // buildHandler assembles the handler chain shared by Init and InitTest:
